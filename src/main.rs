@@ -149,7 +149,7 @@ impl SimpleStruct {
         if self.fields.len() == 0 {
             panic!("empty structs not supported");
         } else if self.fields.len() == 1 && self.fields[0].name.is_none() {
-            format!("export type {} = {};", self.name, self.fields[0].ty.to_ts())
+            format!("export type {} = {};\n", self.name, self.fields[0].ty.to_ts())
         } else {
             let mut out = format!("export interface {} {{\n", self.name);
             for f in self.fields.iter() {
@@ -282,6 +282,6 @@ mod tests {
             ]
         };
 
-        assert_eq!(s.to_ts(), "export type MyType = string;")
+        assert_eq!(s.to_ts(), "export type MyType = string;\n")
     }
 }
