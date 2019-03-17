@@ -21,9 +21,21 @@ enum SimpleTypeError {
 }
 
 #[derive(Debug)]
+struct SimpleField {
+    name: Option<String>,
+    ty: SimpleType,
+}
+
+impl SimpleField {
+    fn new(name: Option<String>, ty: SimpleType) -> SimpleField {
+        SimpleField { name, ty }
+    }
+}
+
+#[derive(Debug)]
 struct SimpleStruct {
     name: String,
-    fields: Vec<(String, SimpleType)>,
+    fields: Vec<SimpleField>,
 }
 
 const NUMERIC_TYPES: [&'static str; 10] = [
@@ -115,14 +127,14 @@ impl SimpleStruct {
             fields: Vec::new(),
         };
         for field in s.fields.iter() {
-            let name = field.ident.as_ref().unwrap().to_string();
+            let name = field.ident.as_ref().map(|i| i.to_string());
             match SimpleType::new(&field.ty) {
                 Ok(st) => {
-                    ss.fields.push((name, st));
+                    ss.fields.push(SimpleField::new(name, st));
                     //println!("{}: {:?}", name, st);
                 }
                 Err(err) => {
-                    println!("{}: {:?}", name, err);
+                    println!("{:?}: {:?}", name, err);
                 }
             }
             //println!("{}", field.ident.unwrap().to_string());
@@ -135,7 +147,7 @@ impl SimpleStruct {
     fn to_ts(&self) -> String {
         let mut out = format!("interface {} {{\n", self.name);
         for f in self.fields.iter() {
-            out += &format!("  {}: {};\n", f.0, f.1.to_ts());
+            out += &format!("  {}: {};\n", f.name.as_ref().unwrap(), f.ty.to_ts());
         }
         out += "}\n";
         out
@@ -182,7 +194,8 @@ fn main() {
     let matches = clap_app!(rsts =>
         (about: "Convert Rust types to Typescript")
         (@arg INPUT: +required +multiple "typescript file(s)")
-    ).get_matches();
+    )
+    .get_matches();
 
     //let inputs = matches.values_of("INPUT").unwrap().collect::<Vec<&str>>();
 
