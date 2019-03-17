@@ -3,6 +3,8 @@ name = "rsts"
 version = "0.1.0"
 authors = ["Nicholas Bishop <nicholasbishop@gmail.com>"]
 edition = "2018"
+description = "Convert Rust types to TypeScript"
+repository = "https://github.com/nicholasbishop/rsts"
 
 [dependencies]
 clap = "2.32"
