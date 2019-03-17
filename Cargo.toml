@@ -1,0 +1,9 @@
+[package]
+name = "rsts"
+version = "0.1.0"
+authors = ["Nicholas Bishop <nicholasbishop@gmail.com>"]
+edition = "2018"
+
+[dependencies]
+clap = "2.32"
+syn = { version = "0.15", features = [ "extra-traits", "full" ] }
