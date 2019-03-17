@@ -146,12 +146,18 @@ impl SimpleStruct {
     }
 
     fn to_ts(&self) -> String {
-        let mut out = format!("interface {} {{\n", self.name);
-        for f in self.fields.iter() {
-            out += &format!("  {}: {};\n", f.name.as_ref().unwrap(), f.ty.to_ts());
+        if self.fields.len() == 0 {
+            panic!("empty structs not supported");
+        } else if self.fields.len() == 1 && self.fields[0].name.is_none() {
+            format!("type {} = {};", self.name, self.fields[0].ty.to_ts())
+        } else {
+            let mut out = format!("interface {} {{\n", self.name);
+            for f in self.fields.iter() {
+                out += &format!("  {}: {};\n", f.name.as_ref().unwrap(), f.ty.to_ts());
+            }
+            out += "}\n";
+            out
         }
-        out += "}\n";
-        out
     }
 }
 
@@ -265,5 +271,17 @@ mod tests {
         );
 
         assert_eq!(st.to_ts(), "(number | null)[]");
+    }
+
+    #[test]
+    fn newtype() {
+        let s = SimpleStruct {
+            name: "MyType".to_string(),
+            fields: vec![
+                SimpleField::new(None, SimpleType::new(vec!["String".to_string()], vec![])),
+            ]
+        };
+
+        assert_eq!(s.to_ts(), "type MyType = string;")
     }
 }
