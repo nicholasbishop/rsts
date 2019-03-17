@@ -43,7 +43,11 @@ const NUMERIC_TYPES: [&'static str; 10] = [
 ];
 
 impl SimpleType {
-    fn new(ty: &syn::Type) -> Result<SimpleType, SimpleTypeError> {
+    fn new(path: Vec<String>, generic_args: Vec<SimpleType>) -> SimpleType {
+        SimpleType { path, generic_args }
+    }
+
+    fn from_syn_type(ty: &syn::Type) -> Result<SimpleType, SimpleTypeError> {
         if let syn::Type::Path(path) = ty {
             if path.qself.is_some() {
                 return Err(SimpleTypeError::QSelf);
@@ -52,10 +56,7 @@ impl SimpleType {
                 return Err(SimpleTypeError::LeadingColon);
             }
 
-            let mut st = SimpleType {
-                path: Vec::new(),
-                generic_args: Vec::new(),
-            };
+            let mut st = SimpleType::new(Vec::new(), Vec::new());
             for (i, seg) in path.path.segments.iter().enumerate() {
                 let is_last = i == path.path.segments.len() - 1;
                 if !is_last && !seg.arguments.is_empty() {
@@ -68,7 +69,7 @@ impl SimpleType {
                 if let syn::PathArguments::AngleBracketed(args) = &seg.arguments {
                     for arg in args.args.iter() {
                         if let syn::GenericArgument::Type(ty) = arg {
-                            match SimpleType::new(&ty) {
+                            match SimpleType::from_syn_type(&ty) {
                                 Ok(arg) => {
                                     st.generic_args.push(arg);
                                 }
@@ -128,7 +129,7 @@ impl SimpleStruct {
         };
         for field in s.fields.iter() {
             let name = field.ident.as_ref().map(|i| i.to_string());
-            match SimpleType::new(&field.ty) {
+            match SimpleType::from_syn_type(&field.ty) {
                 Ok(st) => {
                     ss.fields.push(SimpleField::new(name, st));
                     //println!("{}: {:?}", name, st);
@@ -217,60 +218,51 @@ mod tests {
 
     #[test]
     fn simple_type_number() {
-        let st = SimpleType {
-            path: vec!["i32".to_string()],
-            generic_args: Vec::new(),
-        };
+        let st = SimpleType::new(vec!["i32".to_string()], vec![]);
         assert_eq!(st.to_ts(), "number");
     }
 
     #[test]
     fn simple_type_string() {
-        let st = SimpleType {
-            path: vec!["String".to_string()],
-            generic_args: Vec::new(),
-        };
+        let st = SimpleType::new(vec!["String".to_string()], vec![]);
         assert_eq!(st.to_ts(), "string");
     }
 
     #[test]
     fn simple_type_option() {
-        let st = SimpleType {
-            path: vec!["Option".to_string()],
-            generic_args: vec![SimpleType {
+        let st = SimpleType::new(
+            vec!["Option".to_string()],
+            vec![SimpleType {
                 path: vec!["i32".to_string()],
                 generic_args: vec![],
             }],
-        };
+        );
 
         assert_eq!(st.to_ts(), "number | null");
     }
 
     #[test]
     fn simple_type_vec() {
-        let st = SimpleType {
-            path: vec!["Vec".to_string()],
-            generic_args: vec![SimpleType {
+        let st = SimpleType::new(
+            vec!["Vec".to_string()],
+            vec![SimpleType {
                 path: vec!["i32".to_string()],
                 generic_args: vec![],
             }],
-        };
+        );
 
         assert_eq!(st.to_ts(), "number[]");
     }
 
     #[test]
     fn simple_type_vec_option() {
-        let st = SimpleType {
-            path: vec!["Vec".to_string()],
-            generic_args: vec![SimpleType {
-                path: vec!["Option".to_string()],
-                generic_args: vec![SimpleType {
-                    path: vec!["i32".to_string()],
-                    generic_args: vec![],
-                }],
-            }],
-        };
+        let st = SimpleType::new(
+            vec!["Vec".to_string()],
+            vec![SimpleType::new(
+                vec!["Option".to_string()],
+                vec![SimpleType::new(vec!["i32".to_string()], vec![])],
+            )],
+        );
 
         assert_eq!(st.to_ts(), "(number | null)[]");
     }
