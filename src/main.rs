@@ -38,6 +38,25 @@ struct SimpleStruct {
     fields: Vec<SimpleField>,
 }
 
+#[derive(Debug)]
+struct SimpleVariant {
+    name: String,
+    fields: Vec<SimpleType>,
+    // TODO: literal values
+}
+
+impl SimpleVariant {
+    fn new(name: String, fields: Vec<SimpleType>) -> SimpleVariant {
+        SimpleVariant { name, fields }
+    }
+}
+
+#[derive(Debug)]
+struct SimpleEnum {
+    name: String,
+    variants: Vec<SimpleVariant>,
+}
+
 const NUMERIC_TYPES: [&'static str; 10] = [
     "i8", "i16", "i32", "i64", "u8", "u16", "u32", "u64", "f32", "f64",
 ];
@@ -134,6 +153,47 @@ impl SimpleType {
     }
 }
 
+impl SimpleEnum {
+    fn from_syn_type(e: &syn::ItemEnum) -> Option<SimpleEnum> {
+        let name = e.ident.to_string();
+        let mut se = SimpleEnum {
+            name,
+            variants: Vec::new(),
+        };
+        for v in e.variants.iter() {
+            let mut fields = Vec::new();
+            for f in v.fields.iter() {
+                if let Ok(ty) = SimpleType::from_syn_type(&f.ty) {
+                    fields.push(ty);
+                } else {
+                    return None;
+                }
+            }
+            se.variants
+                .push(SimpleVariant::new(v.ident.to_string(), fields));
+        }
+        Some(se)
+    }
+
+    fn to_ts(&self) -> String {
+        let mut out = format!("type {} =\n", self.name);
+        let mut variants = Vec::new();
+        for v in self.variants.iter() {
+            if v.fields.len() == 0 {
+                variants.push(format!("  \"{}\"", v.name));
+            } else if v.fields.len() == 1 {
+                variants.push(format!("  {{ {}: {} }}", v.name, v.fields[0].to_ts()));
+            } else {
+                let fields = v.fields.iter().map(|f| f.to_ts()).collect::<Vec<String>>();
+                variants.push(format!("  {{ {}: [{}]", v.name, fields.join(", ")));
+            }
+        }
+        out += &variants.join(" |\n");
+        out += ";\n";
+        out
+    }
+}
+
 impl SimpleStruct {
     fn new(s: &syn::ItemStruct) -> Option<SimpleStruct> {
         let name = s.ident.to_string();
@@ -177,6 +237,7 @@ impl SimpleStruct {
 
 struct SimpleFile {
     name: String,
+    enums: Vec<SimpleEnum>,
     structs: Vec<SimpleStruct>,
 }
 
@@ -186,10 +247,15 @@ impl SimpleFile {
 
         let syntax = syn::parse_file(&src).expect("Unable to parse file");
 
+        let mut enums = Vec::new();
         let mut structs = Vec::new();
 
         for item in syntax.items {
-            if let syn::Item::Struct(s) = item {
+            if let syn::Item::Enum(s) = item {
+                if let Some(s) = SimpleEnum::from_syn_type(&s) {
+                    enums.push(s);
+                }
+            } else if let syn::Item::Struct(s) = item {
                 if let Some(s) = SimpleStruct::new(&s) {
                     structs.push(s);
                 }
@@ -198,12 +264,16 @@ impl SimpleFile {
 
         SimpleFile {
             name: path.file_name().unwrap().to_str().unwrap().to_string(),
+            enums: enums,
             structs: structs,
         }
     }
 
     fn to_ts(&self) -> String {
         let mut output = format!("// {}\n", self.name);
+        for e in self.enums.iter() {
+            output += &e.to_ts();
+        }
         for s in self.structs.iter() {
             output += &s.to_ts();
         }
