@@ -137,7 +137,6 @@ impl SimpleType {
 impl SimpleStruct {
     fn new(s: &syn::ItemStruct) -> Option<SimpleStruct> {
         let name = s.ident.to_string();
-        //        println!("{}", name);
         let mut ss = SimpleStruct {
             name,
             fields: Vec::new(),
@@ -147,15 +146,11 @@ impl SimpleStruct {
             match SimpleType::from_syn_type(&field.ty) {
                 Ok(st) => {
                     ss.fields.push(SimpleField::new(name, st));
-                    //println!("{}: {:?}", name, st);
                 }
                 Err(err) => {
                     println!("{:?}: {:?}", name, err);
                 }
             }
-            //println!("{}", field.ident.unwrap().to_string());
-            //println!("{:#?}", field.ty);
-            //println!("{:#?}", field.ty.to_tokens(&tokens));
         }
         Some(ss)
     }
@@ -223,14 +218,10 @@ fn main() {
     )
     .get_matches();
 
-    //let inputs = matches.values_of("INPUT").unwrap().collect::<Vec<&str>>();
-
     let mut files = Vec::new();
     for input in matches.values_of("INPUT").unwrap() {
         files.push(SimpleFile::load(std::path::Path::new(input)));
     }
-
-    //dbg!(&inputs);
 
     print!("export type DateTimeUtc = string;\n");
     for f in files {
