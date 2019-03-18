@@ -176,7 +176,7 @@ impl SimpleEnum {
     }
 
     fn to_ts(&self) -> String {
-        let mut out = format!("type {} =\n", self.name);
+        let mut out = format!("export type {} =\n", self.name);
         let mut variants = Vec::new();
         for v in self.variants.iter() {
             if v.fields.len() == 0 {
@@ -386,5 +386,17 @@ mod tests {
             ],
         );
         assert_eq!(t.to_ts(), "Record<string, number>");
+    }
+
+    #[test]
+    fn enum_to_ts() {
+        let e = SimpleEnum {
+            name: "myEnum".to_string(),
+            variants: vec![SimpleVariant::new(
+                "myVariant".to_string(),
+                vec![],
+            )],
+        };
+        assert_eq!(e.to_ts(), "export type myEnum =\n  \"myVariant\";\n");
     }
 }
