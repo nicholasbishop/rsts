@@ -194,6 +194,21 @@ impl SimpleEnum {
     }
 }
 
+fn attr_to_derives(attr: &syn::Attribute) -> Vec<String> {
+    let mut derives = Vec::new();
+    if let Ok(syn::Meta::List(lst)) = attr.parse_meta() {
+        if lst.ident.to_string() != "derive" {
+            return derives;
+        }
+        for child in lst.nested.iter() {
+            if let syn::NestedMeta::Meta(syn::Meta::Word(ident)) = child {
+                derives.push(ident.to_string());
+            }
+        }
+    }
+    derives
+}
+
 impl SimpleStruct {
     fn new(s: &syn::ItemStruct) -> Option<SimpleStruct> {
         let name = s.ident.to_string();
@@ -201,6 +216,19 @@ impl SimpleStruct {
             name,
             fields: Vec::new(),
         };
+        let mut derives = Vec::new();
+        for attr in s.attrs.iter() {
+            derives.append(&mut attr_to_derives(&attr));
+        }
+        // Skip structs that don't derive Deserialize or
+        // Serialize. These traits might be manually implemented, but
+        // then it's not clear if we can meaningfully autogenerate a
+        // TypeScript type.
+        if !derives.contains(&"Deserialize".to_string()) &&
+            !derives.contains(&"Serialize".to_string()) {
+            return None;
+        }
+        dbg!(&derives);
         for field in s.fields.iter() {
             let name = field.ident.as_ref().map(|i| i.to_string());
             match SimpleType::from_syn_type(&field.ty) {
