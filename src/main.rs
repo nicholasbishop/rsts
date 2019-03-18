@@ -92,6 +92,13 @@ impl SimpleType {
         }
     }
 
+    fn is_datetime_utc(&self) -> bool {
+        self.path == ["DateTime"]
+            && self.generic_args.len() == 1
+            && self.generic_args[0].path == ["Utc"]
+            && self.generic_args[0].generic_args.is_empty()
+    }
+
     fn to_ts(&self) -> String {
         if self.path == ["Option"] && self.generic_args.len() == 1 {
             format!("{} | null", self.generic_args[0].to_ts())
@@ -101,6 +108,14 @@ impl SimpleType {
                 inner = format!("({})", inner);
             }
             format!("{}[]", inner)
+        } else if self.is_datetime_utc() {
+            "DateTimeUtc".to_string()
+        } else if self.path == ["HashMap"] && self.generic_args.len() == 2 {
+            format!(
+                "Record<{}, {}>",
+                self.generic_args[0].to_ts(),
+                self.generic_args[1].to_ts()
+            )
         } else if self.generic_args.len() == 0 {
             if self.path.len() == 1 {
                 if NUMERIC_TYPES.contains(&self.path[0].as_str()) {
@@ -111,10 +126,10 @@ impl SimpleType {
                     self.path[0].to_string()
                 }
             } else {
-                "TODO".to_string()
+                "TODO1".to_string()
             }
         } else {
-            "TODO".to_string()
+            "TODO2".to_string()
         }
     }
 }
@@ -149,7 +164,11 @@ impl SimpleStruct {
         if self.fields.len() == 0 {
             panic!("empty structs not supported");
         } else if self.fields.len() == 1 && self.fields[0].name.is_none() {
-            format!("export type {} = {};\n", self.name, self.fields[0].ty.to_ts())
+            format!(
+                "export type {} = {};\n",
+                self.name,
+                self.fields[0].ty.to_ts()
+            )
         } else {
             let mut out = format!("export interface {} {{\n", self.name);
             for f in self.fields.iter() {
@@ -213,6 +232,7 @@ fn main() {
 
     //dbg!(&inputs);
 
+    print!("export type DateTimeUtc = string;\n");
     for f in files {
         print!("{}", f.to_ts());
     }
@@ -277,11 +297,33 @@ mod tests {
     fn newtype() {
         let s = SimpleStruct {
             name: "MyType".to_string(),
-            fields: vec![
-                SimpleField::new(None, SimpleType::new(vec!["String".to_string()], vec![])),
-            ]
+            fields: vec![SimpleField::new(
+                None,
+                SimpleType::new(vec!["String".to_string()], vec![]),
+            )],
         };
 
         assert_eq!(s.to_ts(), "export type MyType = string;\n")
+    }
+
+    #[test]
+    fn datetime() {
+        let t = SimpleType::new(
+            vec!["DateTime".to_string()],
+            vec![SimpleType::new(vec!["Utc".to_string()], vec![])],
+        );
+        assert_eq!(t.to_ts(), "DateTimeUtc");
+    }
+
+    #[test]
+    fn hashmap() {
+        let t = SimpleType::new(
+            vec!["HashMap".to_string()],
+            vec![
+                SimpleType::new(vec!["String".to_string()], vec![]),
+                SimpleType::new(vec!["i32".to_string()], vec![]),
+            ],
+        );
+        assert_eq!(t.to_ts(), "Record<string, number>");
     }
 }
