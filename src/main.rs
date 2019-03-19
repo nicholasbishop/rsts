@@ -185,7 +185,7 @@ impl SimpleEnum {
                 variants.push(format!("  {{ {}: {} }}", v.name, v.fields[0].to_ts()));
             } else {
                 let fields = v.fields.iter().map(|f| f.to_ts()).collect::<Vec<String>>();
-                variants.push(format!("  {{ {}: [{}]", v.name, fields.join(", ")));
+                variants.push(format!("  {{ {}: [{}] }}", v.name, fields.join(", ")));
             }
         }
         out += &variants.join(" |\n");
